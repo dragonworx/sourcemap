@@ -1,0 +1,38 @@
+{
+  "name": "source-map",
+  "version": "0.0.1",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "files": [
+    "./dist/index.js"
+  ],
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "clean": "/bin/rm -fdr ./dist",
+    "start": "yarn web:dev",
+    "web:dev": "parcel ./index.html -p 3000",
+    "web:watch": "parcel watch ./index.html",
+    "web:build": "parcel build ./index.html",
+    "lib:prod": "yarn clean && yarn build:lib && yarn build:types",
+    "lib:build": "parcel build ./lib/index.ts",
+    "lib:types": "./node_modules/typescript/bin/tsc --declaration --emitDeclarationOnly --outDir ./dist --lib es2015,dom ./lib/index.ts "
+  },
+  "devDependencies": {
+    "@types/react": "^16.9.25",
+    "@types/react-dom": "^16.9.5",
+    "less": "^3.11.1",
+    "parcel-bundler": "^1.12.4",
+    "typescript": "^3.8.3"
+  },
+  "dependencies": {
+    "@types/html2canvas": "^0.0.35",
+    "codemirror": "^5.53.2",
+    "com": "^0.0.5",
+    "components": "^0.1.0",
+    "html2canvas": "^1.0.0-rc.5",
+    "prop-types": "^15.7.2",
+    "react": "^16.13.0",
+    "react-codemirror2": "^7.1.0",
+    "react-dom": "^16.13.0"
+  }
+}

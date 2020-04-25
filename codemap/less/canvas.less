@@ -1,0 +1,35 @@
+#canvas {
+   background-color: transparent;
+   position: absolute;
+   top: 0;
+   left: 0;
+   right: 0;
+   bottom: 0;
+   overflow: hidden;
+
+   .dragBounds {
+      border: 1px solid yellow;
+      position: absolute;
+      background: rgba(0, 140, 255, 0.26);
+      pointer-events: none;
+   }
+
+   &.drag {
+      border: 2px dashed yellow;
+   }
+
+   &.mode_0 {
+      cursor: default;
+   }
+
+   &.mode_1 {
+      cursor: grab;
+   }
+
+   #cursor {
+      position: absolute;
+      margin-left: -12px;
+      margin-top: -12px;
+      pointer-events: none;
+   }
+}

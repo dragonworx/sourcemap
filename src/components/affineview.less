@@ -1,0 +1,35 @@
+.affineTransform {
+   background: red;
+   position: relative;
+   overflow: hidden;
+   display: flex;
+   width: 50%;
+   height: 50%;
+
+   .transformed {
+      flex-grow: 1;
+      background-color: rgba(0,0,0,0.3 );
+      transition: transform 0.3s ease-out;
+      position: absolute;
+   }
+
+   &.panHover {
+      cursor: grab;
+   }
+
+   &.panDrag {
+      cursor: grabbing;
+   }
+
+   .info {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      font-size: smaller;
+      color: white;
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+   }
+}
