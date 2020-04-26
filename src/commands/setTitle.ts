@@ -1,14 +1,12 @@
-import { State } from '../state';
-import { Command, ObjectCachedState } from 'commandStore';
+import { State } from '../store';
+import { Command, Mutator } from '../commandStore';
 
-export const SetTitle = (newTitle: string): Command<State> => [
-   'setTitle',
-   ({ title }: State, undoCache: ObjectCachedState<any, any>[], redoCache: ObjectCachedState<any, any>[]) => {
+export const SetTitle = (newTitle: string) => Command(
+   'SetTitle',
+   (state: State, modify: Mutator) => {
+      const { title } = state;
       const value = title + newTitle;
-      undoCache.push({key: 'title', value: title});
-      redoCache.push({key: 'title', value});
-      return {
-         title: value,
-      };
+      modify(state, 'title', value);
+      modify(state, 'count', value.length);
    }
-]
+);

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Provider } from '../store';
+import { useStore } from '../store';
 import Test from './test';
 import Test1 from './test1';
 import Undo from './undo';
@@ -7,12 +7,16 @@ import Redo from './redo';
 import './app.less';
 
 export function App() {
+   const { state: { title }, dispatch } = useStore();
+
    return (
-      <Provider>
+      <div>
+         <p>{title}</p>
          <Test />
          <Test1 />
          <Undo />
          <Redo />
-      </Provider>
+         <p>{title}</p>
+      </div>
    )
 }

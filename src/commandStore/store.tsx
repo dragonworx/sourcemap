@@ -1,70 +1,54 @@
-import { Command, CommandCache, ObjectCachedState } from './command';
-import { replaceArray } from '../util';
+import { CommandRef, CommandCache } from './command';
 
 export class Store<State> {
    constructor(readonly state: State, readonly undoStack: CommandCache[] = [], readonly redoStack: CommandCache[] = []) {
-      console.log('Store!')
+      console.log('Store!', state)
    }
 
-   reducer(state: State, command: Command<any>) {
-      const undoCache: ObjectCachedState<any, any>[] = [];
-      const redoCache: ObjectCachedState<any, any>[] = [];
-      const [ commandName, executor ] = command;
-      const partialNewState = executor(state, undoCache, redoCache);
-      console.log(JSON.stringify(commandName), state, partialNewState);
-      if (partialNewState === false) {
+   reducer(state: State, command: CommandRef<any>) {
+      const { name: commandName, executor } = command;
+      const commandCache = new CommandCache(command);
+      const mutator = (object: any, key: string | null, value: any) => {
+         console.log('Mutator!', object, key, value);
+         commandCache.modify(object, key, value);
+      };
+      const currentState = this.state;
+      const shouldCancel = executor(currentState, mutator);
+      console.log(`Command![${commandName}]`, currentState, shouldCancel);
+      if (shouldCancel === false) {
          console.log('Cancelled!')
          if (commandName === 'undo' || commandName === 'redo') {
             return {
-               ...state,
+               ...currentState,
             };
          }
          return state;
       } else {
-         const cache: CommandCache = {
-            undo: undoCache,
-            redo: redoCache,
-         };
-         this.undoStack.push(cache);
+         this.undoStack.push(commandCache);
          this.redoStack.length = 0;
          console.log(this.undoStack.length);
          return {
-            ...state,
-            ...(partialNewState as Partial<State>),
+            ...currentState,
          };
       }
    }
 
-   undo(state: State) {
-      console.log('Undo!');
-      const cache = this.undoStack.pop();
-      if (cache) {
-         this.redoStack.push(cache);
-         cache.undo.forEach(({key, value }) => {
-            const object = (state as any)[key];
-            if (Array.isArray(object) && key === '*') {
-               replaceArray(object, value);
-            } else {
-               (state as any)[key] = value;
-            }
-         });
+   undo() {
+      const commandCache = this.undoStack.pop();
+      if (commandCache) {
+         this.redoStack.push(commandCache);
+         console.log('Undo!', commandCache.command.name);
+         commandCache.undo.restore();
       }
       return false;
    }
 
-   redo(state: State) {
-      console.log('Redo!');
-      const cache = this.redoStack.pop();
-      if (cache) {
-         this.undoStack.push(cache);
-         cache.redo.forEach(({key, value }) => {
-            const object = (state as any)[key];
-            if (Array.isArray(object) && key === '*') {
-               replaceArray(object, value);
-            } else {
-               (state as any)[key] = value;
-            }
-         });
+   redo() {
+      const commandCache = this.redoStack.pop();
+      if (commandCache) {
+         this.undoStack.push(commandCache);
+         console.log('Redo!', commandCache.command.name);
+         commandCache.redo.restore();
       }
       return false;
    }

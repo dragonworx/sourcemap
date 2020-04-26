@@ -1,8 +1,14 @@
-import { initialState } from './state';
-import { createStore } from './commandStore';
+import { createCommandStore } from './commandStore';
 
-const state = initialState();
-const { Provider, useStore } = createStore(state);
+export const initialState = () => ({
+   title: 'untitled',
+   count: 0,
+   nodes: [{label: 'nodeLabel'}]
+});
+
+export type State = ReturnType<typeof initialState>;
+
+const { Provider, useStore } = createCommandStore(initialState());
 
 export {
    Provider,

@@ -7,17 +7,17 @@ import {
    useContext,
    Dispatch,
 } from 'react';
-import { Command } from './command';
+import { CommandRef } from './command';
 import { Store } from './store'
 
 export interface Props {
    children: ReactNode;
 }
 
-export function createStore<T>(initialState: T) {
+export function createCommandStore<T>(initialState: T) {
    const AppContext = createContext<{
       state: T;
-      dispatch: Dispatch<Command<T>>;
+      dispatch: Dispatch<CommandRef<T>>;
       undo: () => void;
       redo: () => void;
    }>({
@@ -32,8 +32,8 @@ export function createStore<T>(initialState: T) {
    function Provider({ children }: Props) {
       const memoizedReducer = useCallback(store.reducer.bind(store), [store]);
       const [state, dispatch] = useReducer(memoizedReducer, initialState);
-      const undo = () => dispatch(['undo', store.undo.bind(store)]);
-      const redo = () => dispatch(['redo', store.redo.bind(store)]);
+      const undo = () => dispatch({name: 'undo', executor: store.undo.bind(store)});
+      const redo = () => dispatch({name: 'redo', executor: store.redo.bind(store)});
       return (
          <AppContext.Provider value={{ state, dispatch, undo, redo }}>
             {children}
