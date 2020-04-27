@@ -1,12 +1,12 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { App } from './components/app';
-import { Provider } from './store';
+import { ExampleProvider } from './commandStore/example/store';
 
 console.log('App started: ' + Date.now());
 
 ReactDOM.render((
-   <Provider>
+   <ExampleProvider>
       <App />
-   </Provider>
+   </ExampleProvider>
 ), document.getElementById('app'));

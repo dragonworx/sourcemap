@@ -1,11 +1,3 @@
-export function findLast<T>(array: Array<T>, predicate: (value: T, index: number, obj: T[]) => boolean) {
-   let l = array.length;
-   while (l--) {
-       if (predicate(array[l], l, array))
-           return array[l];
-   }
-};
-
 export function clone(value: any) {
    if (Array.isArray(value)) {
       return [...value];
@@ -23,12 +15,6 @@ export function replaceArray<T>(source: Array<T>, target: Array<T>) {
    return source;
 }
 
-export function removeArrayItem<T>(array: Array<T>, item: T) {
-   const index = array.indexOf(item);
-   array.splice(index, 1);
-   return array;
-}
-
 export function isObjectLiteral(obj: any) {
    let temp = obj;
    return (typeof obj !== 'object' || obj === null ?
@@ -44,18 +30,4 @@ export function isObjectLiteral(obj: any) {
          })()
       )
    );
-}
-
-export function readFile(file: File): Promise<string> {
-   return new Promise((resolve, reject) => {
-      var reader = new FileReader();
-      reader.readAsText(file, "UTF-8");
-      reader.onload = function (evt: any) {
-         const src = evt.target.result;
-         resolve(src);
-      };
-      reader.onerror = function (evt) {
-         reject(evt);
-      };
-   });
 }

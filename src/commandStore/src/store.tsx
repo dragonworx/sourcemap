@@ -8,12 +8,8 @@ export class Store<State> {
    reducer(state: State, command: CommandRef<any>) {
       const { name: commandName, executor } = command;
       const commandCache = new CommandCache(command);
-      const mutator = (object: any, key: string | null, value: any) => {
-         console.log('Mutator!', object, key, value);
-         commandCache.modify(object, key, value);
-      };
       const currentState = this.state;
-      const shouldCancel = executor(currentState, mutator);
+      const shouldCancel = executor(commandCache, currentState);
       console.log(`Command![${commandName}]`, currentState, shouldCancel);
       if (shouldCancel === false) {
          console.log('Cancelled!')
