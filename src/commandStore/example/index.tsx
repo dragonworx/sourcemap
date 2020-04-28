@@ -1,6 +1,5 @@
 import * as React from 'react';
 import Title from './title';
-import AddButton from './addButton';
 import Items from './items';
 import Inspector from './inspector';
 import Undo from './undo';
@@ -19,7 +18,6 @@ export default function Example() {;
             <section id="list">
                <section>
                   <Title />
-                  <AddButton />
                </section>
                <Items />
             </section>

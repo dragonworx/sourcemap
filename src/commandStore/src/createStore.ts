@@ -17,6 +17,8 @@ interface UseStoreReturnValue<T> {
    dispatch: (command: CommandRef<any>) => void;
    undo: () => void;
    redo: () => void;
+   undoCount: number;
+   redoCount: number;
 }
 
 interface ObjectLiteral {
@@ -79,7 +81,6 @@ export default function createStore<T extends ObjectLiteral>(initialState: T) {
          return () => {
             const index = dispatchers.findIndex(dispatcherWithScope => dispatcherWithScope.dispatcher === dispatcher);
             dispatchers.splice(index, 1);
-            console.log('Unmounted!', index);
           };
       }, []);
       
@@ -88,6 +89,8 @@ export default function createStore<T extends ObjectLiteral>(initialState: T) {
          dispatch,
          undo,
          redo,
+         undoCount: undoStack.length,
+         redoCount: redoStack.length,
       };
    };
 
