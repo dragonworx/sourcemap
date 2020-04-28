@@ -6,7 +6,8 @@ import {
 } from 'react';
 import {
    CommandRef,
-   CommandCache
+   CommandCache,
+   Mutator
 } from './command';
 
 type Dispatcher = Dispatch<SetStateAction<any>>;
@@ -22,74 +23,63 @@ interface ObjectLiteral {
    [key: string]: any;
 }
 
+interface DispatcherWithScope {
+   dispatcher: Dispatcher;
+   scope: string[];
+}
+
 export default function createStore<T extends ObjectLiteral>(initialState: T) {
-   const dispatchers = Array<Dispatcher>();
+   const dispatchers = Array<DispatcherWithScope>();
    const undoStack : CommandCache[] = [];
    const redoStack : CommandCache[] = [];
 
-   // const state = {
-   //    ...initialState
-   // };
+   const state = {
+      ...initialState
+   };
 
-   const state = new Proxy<T>(initialState, {
-      get(obj: T, key: string) {console.log('GET', key);
-         return obj[key];
-      },
-      set(obj: T, key: string, value: any) {console.log('SET', key, value);
-         (obj as any)[key] = value;
-         return true;
-      }
-   });
-
-   const update = () => {
-      dispatchers.forEach((dispatcher) => {
-         dispatcher(Date.now());
+   const update = (affectedScope: string[]) => {
+      dispatchers.forEach((dispatcherWithScope) => {
+         affectedScope.forEach(scope => {
+            if (dispatcherWithScope.scope.length === 0) return;
+            dispatcherWithScope.scope.forEach(dispatcherScope => {
+               if (dispatcherScope === '*' || dispatcherScope.indexOf(scope) === 0) {
+                  dispatcherWithScope.dispatcher(Date.now());
+               }
+            });
+         })
       });
    };
 
    const dispatch = (command: CommandRef<any>) => {
       const { name: commandName, executor } = command;
       const commandCache = new CommandCache(command);
-      const cancelled = executor(commandCache, state);
-      console.log(`Command![${commandName}]`, state, cancelled);
-      if (cancelled === false) {
-         console.log('Cancelled!')
+      const mutator = new Mutator(commandCache);
+      const affectedScope = executor(mutator, state);
+      commandCache.affectedScope = affectedScope;
+      console.log(`Command![${commandName}]`, state, affectedScope);
+      if (affectedScope.length === 0) {
+         console.log('No-op!')
       } else {
          undoStack.push(commandCache);
          redoStack.length = 0;
       }
 
-      update();
+      update(affectedScope);
    };
 
-   const undo = () => {
-      const commandCache = undoStack.pop();
-      if (commandCache) {
-         redoStack.push(commandCache);
-         console.log('Undo!', commandCache.command.name);
-         commandCache.undo.restore();
-      }
-      update();
-   };
-
-   const redo = () => {
-      const commandCache = redoStack.pop();
-      if (commandCache) {
-         undoStack.push(commandCache);
-         console.log('Redo!', commandCache.command.name);
-         commandCache.redo.restore();
-      }
-      update();
-   };
-
-   const useStore = ():UseStoreReturnValue<T> => {
+   const useStore = (scope: string[]):UseStoreReturnValue<T> => {
       const dispatcher: Dispatcher = useState()[1];
+      const dispatcherWithScope: DispatcherWithScope = {
+         dispatcher,
+         scope,
+      };
 
       useEffect(() => {
-         dispatchers.push(dispatcher);
+         dispatchers.push(dispatcherWithScope);
          return () => {
-            const index = dispatchers.indexOf(dispatcher);
+            const index = dispatchers.findIndex(dispatcherWithScope => dispatcherWithScope.dispatcher === dispatcher);
             dispatchers.splice(index, 1);
+            console.log('Unmounted!', index);
           };
       }, []);
       
@@ -99,6 +89,26 @@ export default function createStore<T extends ObjectLiteral>(initialState: T) {
          undo,
          redo,
       };
+   };
+
+   const undo = () => {
+      const commandCache = undoStack.pop();
+      if (commandCache) {
+         redoStack.push(commandCache);
+         console.log('Undo!', commandCache.command.name);
+         commandCache.undo.restore();
+         update(commandCache.affectedScope);
+      }
+   };
+
+   const redo = () => {
+      const commandCache = redoStack.pop();
+      if (commandCache) {
+         undoStack.push(commandCache);
+         console.log('Redo!', commandCache.command.name);
+         commandCache.redo.restore();
+         update(commandCache.affectedScope);
+      }
    };
 
    return useStore;

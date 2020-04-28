@@ -11,7 +11,8 @@ export const write = (object: any, key: string | undefined, value: any) => {
 
 export class CommandCache {
    undo: ObjectCache = new ObjectCache();
-   redo: ObjectCache = new ObjectCache()
+   redo: ObjectCache = new ObjectCache();
+   affectedScope: string[] = [];
 
    constructor(readonly command: CommandRef<any>) {
    }
@@ -37,6 +38,23 @@ export class CommandCache {
       const index = array.indexOf(item);
       array.splice(index, 1);
       this.redo.capture(array);
+   }
+}
+
+export class Mutator {
+   constructor(readonly commandCache: CommandCache) {
+   }
+
+   modify(object: any, key?: string, value?: any) {
+      this.commandCache.modify(object, key, value);
+   }
+
+   add<T>(array: Array<T>, item: T, index?: number) {
+      this.commandCache.add(array, item, index);
+   }
+
+   delete<T>(array: Array<T>, item: T) {
+      this.commandCache.delete(array, item);
    }
 }
 
@@ -71,9 +89,9 @@ export interface ObjectCachedState {
 }
 
 export type Executor<T> = (
-   cache: CommandCache,
+   mutator: Mutator,
    state: T,
-) => boolean | void;
+) => string[];
 
 export type CommandRef<T> = {
    name: string;

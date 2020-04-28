@@ -18,6 +18,19 @@
 
    }
 
+   #items {
+      width: 300px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+
+      > * {
+         flex-grow: 1;
+         width: calc(100% - 50px);
+      }
+   }
+
    input {
       border: 1px solid #999;
       background-color: #666;
