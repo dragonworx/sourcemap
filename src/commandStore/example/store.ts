@@ -1,4 +1,5 @@
-import { createCommandStore } from '../src';
+// import { createCommandStore } from '../src';
+import createStore from '../src/createStore';
 
 export interface Item {
    title: string;
@@ -15,9 +16,11 @@ export const initialState = () => ({
 
 export type State = ReturnType<typeof initialState>;
 
-const { Provider, useStore } = createCommandStore(initialState());
+// const { Provider, useStore } = createCommandStore(initialState());
 
-export {
-   Provider as ExampleProvider,
-   useStore,
-}
+// export {
+//    Provider as ExampleProvider,
+//    useStore,
+// }
+
+export const useStore = createStore(initialState());

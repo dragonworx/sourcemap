@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useRef } from 'react';
 import { useStore, Item, State } from './store';
 import { Command, CommandCache } from '../src';
+import { randomBorder } from './util';
 
 export interface Props {
    item: Item;
@@ -18,7 +19,7 @@ export default function Item({ item }: Props) {
 
    return (
       <li>
-         <div className="item">
+         <div className="item" style={randomBorder()}>
             <input ref={titleEl} onChange={onTitleChange} value={item.title} />
             <input ref={countEl} type="number" onChange={onCountChange} value={item.count} />
             <button className="delete" onClick={onDeleteClick}>X</button>

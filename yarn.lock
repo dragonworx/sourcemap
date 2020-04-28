@@ -3517,6 +3517,11 @@ object.values@^1.1.0:
     function-bind "^1.1.1"
     has "^1.0.3"
 
+observable-slim@^0.1.5:
+  version "0.1.5"
+  resolved "https://packages.atlassian.com/api/npm/npm-remote/observable-slim/-/observable-slim-0.1.5.tgz#ddb30df2db1ee3e5bc409d29268a5766faab6b24"
+  integrity sha1-3bMN8tse4+W8QJ0pJopXZvqrayQ=
+
 on-finished@~2.3.0:
   version "2.3.0"
   resolved "https://packages.atlassian.com/api/npm/npm-remote/on-finished/-/on-finished-2.3.0.tgz#20f1336481b083cd75337992a16971aa2d906947"
