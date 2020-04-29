@@ -56,7 +56,7 @@ export default function createStore<T extends ObjectLiteral>(initialState: T) {
       const { name: commandName, executor } = command;
       const commandCache = new CommandCache(command);
       const mutator = new Mutator(commandCache);
-      const affectedScope = executor(mutator, state);
+      const affectedScope = executor(mutator, state); // TODO: Promise
       commandCache.affectedScope = affectedScope;
       console.log(`Command![${commandName}]`, state, affectedScope);
       if (affectedScope.length === 0) {
