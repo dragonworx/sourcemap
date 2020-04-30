@@ -4,7 +4,7 @@ import { Command, CommandCache, Mutator } from '../src';
 import { randomBorder } from './util';
 
 export default function AddButton() {
-   const { dispatch } = useStore([]);
+   const { dispatch } = useStore();
 
    const onAddClick = () => dispatch(AddItemCmd());
 

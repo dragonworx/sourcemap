@@ -9,6 +9,7 @@ import {
    CommandCache,
    Mutator
 } from './command';
+import { Observable } from 'object-observer';
 
 type Dispatcher = Dispatch<SetStateAction<any>>;
 
@@ -35,9 +36,15 @@ export default function createStore<T extends ObjectLiteral>(initialState: T) {
    const undoStack : CommandCache[] = [];
    const redoStack : CommandCache[] = [];
 
-   const state = {
+   const state = Observable.from({
       ...initialState
-   };
+   });
+
+   state.observe(changes => {
+      changes.forEach(change => {
+         console.log(change);
+     });
+   });
 
    const update = (affectedScope: string[]) => {
       dispatchers.forEach((dispatcherWithScope) => {
@@ -69,7 +76,7 @@ export default function createStore<T extends ObjectLiteral>(initialState: T) {
       update(affectedScope);
    };
 
-   const useStore = (scope: string[]):UseStoreReturnValue<T> => {
+   const useStore = (...scope: string[]):UseStoreReturnValue<T> => {
       const dispatcher: Dispatcher = useState()[1];
       const dispatcherWithScope: DispatcherWithScope = {
          dispatcher,
@@ -85,7 +92,7 @@ export default function createStore<T extends ObjectLiteral>(initialState: T) {
       }, []);
       
       return {
-         state,
+         state: state as unknown as T,
          dispatch,
          undo,
          redo,

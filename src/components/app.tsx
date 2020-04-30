@@ -7,6 +7,3 @@ export function App() {
       <Example />
    )
 }
-
-import {proxy} from '../commandStore/src/proxy';
-(window as any).test = proxy;

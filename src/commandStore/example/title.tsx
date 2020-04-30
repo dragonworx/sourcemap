@@ -1,11 +1,11 @@
 import * as React from 'react';
 import { useRef } from 'react';
-import { useStore } from './store';
+import { useStore, State } from './store';
 import { Command, Mutator } from '../src';
 import { randomBorder } from './util';
 
 export default function Title() {
-   const { state, dispatch } = useStore(['title']);
+   const { state, dispatch } = useStore('title');
    const el = useRef<HTMLInputElement>(null);
 
    const onChange = () => dispatch(SetTitleCmd(el.current!.value));
@@ -25,3 +25,7 @@ export const SetTitleCmd = (newTitle: string) => Command(
       return ['title'];
    }
 );
+
+export function SetTitleCmd2(state: State, title: string) {
+   state.title = title;
+}
