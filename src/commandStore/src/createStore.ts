@@ -4,18 +4,12 @@ import {
    Dispatch,
    SetStateAction
 } from 'react';
-import {
-   CommandRef,
-   CommandCache,
-   Mutator
-} from './command';
-import { Observable } from 'object-observer';
+import { Observable, Change } from 'object-observer';
 
 type Dispatcher = Dispatch<SetStateAction<any>>;
 
 interface UseStoreReturnValue<T> {
    state: T;
-   dispatch: (command: CommandRef<any>) => void;
    undo: () => void;
    redo: () => void;
    undoCount: number;
@@ -33,25 +27,65 @@ interface DispatcherWithScope {
 
 export default function createStore<T extends ObjectLiteral>(initialState: T) {
    const dispatchers = Array<DispatcherWithScope>();
-   const undoStack : CommandCache[] = [];
-   const redoStack : CommandCache[] = [];
+   const undoStack: Change[] = [];
+   const redoStack: Change[] = [];
 
    const state = Observable.from({
       ...initialState
    });
 
+   (window as any).state = state;
+
+   const getPath = (change: Change): string =>
+      change.path.map(item => {
+         if (typeof item === 'string') {
+            return item;
+         }
+         return `[${item}]`;
+      })
+         .join('.')
+         .replace(/\.\[/g, '[')
+         .replace(/\.\]/g, '[');
+
+   const debugChange = (change: Change) => JSON.stringify({
+      ...change,
+      object: undefined,
+      pathStr: getPath(change),
+   }, null, 4);
+
    state.observe(changes => {
+      const affectedScopes: string[] = [];
       changes.forEach(change => {
-         console.log(change);
+         const { type, path, object, value, oldValue } = change;
+         const key = `${path[path.length - 1]}`;
+         if (type === 'delete' && key === '__bypass__') {
+            return;
+         }
+         const pathStr = getPath(change);
+         if (affectedScopes.indexOf(pathStr) === -1) {
+            affectedScopes.push(pathStr);
+         }
+         if ('__bypass__' in change.object) {
+            console.log('Detect Bypass!', debugChange(change));
+            delete change.object['__bypass__'];
+            return;
+         }
+         console.log('Observe!', debugChange(change));
+         undoStack.push(change);
+         redoStack.length = 0;
      });
+     if (affectedScopes.length) {
+      update(affectedScopes);
+     }
    });
 
-   const update = (affectedScope: string[]) => {
+   const update = (affectedScopes: string[]) => {
+      console.log('Update!', affectedScopes);
       dispatchers.forEach((dispatcherWithScope) => {
-         affectedScope.forEach(scope => {
+         affectedScopes.forEach(affectedScope => {
             if (dispatcherWithScope.scope.length === 0) return;
             dispatcherWithScope.scope.forEach(dispatcherScope => {
-               if (dispatcherScope === '*' || dispatcherScope.indexOf(scope) === 0) {
+               if (dispatcherScope === '*' || affectedScope.indexOf(dispatcherScope) === 0) {
                   dispatcherWithScope.dispatcher(Date.now());
                }
             });
@@ -59,24 +93,7 @@ export default function createStore<T extends ObjectLiteral>(initialState: T) {
       });
    };
 
-   const dispatch = (command: CommandRef<any>) => {
-      const { name: commandName, executor } = command;
-      const commandCache = new CommandCache(command);
-      const mutator = new Mutator(commandCache);
-      const affectedScope = executor(mutator, state); // TODO: Promise
-      commandCache.affectedScope = affectedScope;
-      console.log(`Command![${commandName}]`, state, affectedScope);
-      if (affectedScope.length === 0) {
-         console.log('No-op!')
-      } else {
-         undoStack.push(commandCache);
-         redoStack.length = 0;
-      }
-
-      update(affectedScope);
-   };
-
-   const useStore = (...scope: string[]):UseStoreReturnValue<T> => {
+   const useStore = (...scope: string[]): UseStoreReturnValue<T> => {
       const dispatcher: Dispatcher = useState()[1];
       const dispatcherWithScope: DispatcherWithScope = {
          dispatcher,
@@ -93,7 +110,6 @@ export default function createStore<T extends ObjectLiteral>(initialState: T) {
       
       return {
          state: state as unknown as T,
-         dispatch,
          undo,
          redo,
          undoCount: undoStack.length,
@@ -101,23 +117,57 @@ export default function createStore<T extends ObjectLiteral>(initialState: T) {
       };
    };
 
+   const bypassObject = (object :any) => Object.defineProperty(object, '__bypass__', {
+      value: true,
+      configurable: true,
+   });
+
+   const setValue = (path: (string | number)[], value: any) => {
+      let ref = state as any;
+      let key = path[0];
+      for (let i = 0; i < path.length - 1; i++) {
+         key = path[i];
+         ref = ref[key];
+      }
+      bypassObject(ref);
+      ref[path[path.length - 1]] = value;
+   };
+
    const undo = () => {
-      const commandCache = undoStack.pop();
-      if (commandCache) {
-         redoStack.push(commandCache);
-         console.log('Undo!', commandCache.command.name);
-         commandCache.undo.restore();
-         update(commandCache.affectedScope);
+      const change = undoStack.pop();
+      if (change) {
+         const { type, path, object, value, oldValue } = change;
+         redoStack.push(change);
+         console.log('Undo!', debugChange(change));
+         const key = `${path[path.length - 1]}`;
+         if (type === 'update') {
+            // object[key] = oldValue;
+            setValue(path, oldValue);
+         } else if (type === 'delete') {
+            bypassObject(object);
+            if (Array.isArray(object)) {
+               object.splice(parseInt(key), 0, oldValue);
+            } // TODO: object and ?
+         }
       }
    };
 
    const redo = () => {
-      const commandCache = redoStack.pop();
-      if (commandCache) {
-         undoStack.push(commandCache);
-         console.log('Redo!', commandCache.command.name);
-         commandCache.redo.restore();
-         update(commandCache.affectedScope);
+      const change = redoStack.pop();
+      if (change) {
+         const { type, path, object, value, oldValue } = change;
+         undoStack.push(change);
+         console.log('Redo!', debugChange(change));
+         const key = `${path[path.length - 1]}`;
+         if (type === 'update') {
+            // object[key] = value;
+            setValue(path, value);
+         } else if (type === 'insert' || type === 'delete') {
+            if (Array.isArray(object)) {
+               bypassObject(object);
+               object.splice(parseInt(key), 1);
+            } // TODO: object and ?
+         }
       }
    };
 

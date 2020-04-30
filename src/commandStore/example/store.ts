@@ -8,6 +8,9 @@ export interface Item {
 
 export const initialState = () => ({
    title: 'My List',
+   user: {
+      name: 'Bob',
+   },
    items: Array(5).fill(0).map((i, j) => ({
       title: `Item ${j}`,
       count: 0,
