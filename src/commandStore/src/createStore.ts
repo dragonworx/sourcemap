@@ -4,7 +4,7 @@ import {
    Dispatch,
    SetStateAction
 } from 'react';
-import { Observable, Change } from 'object-observer';
+import { Observable, Change } from './object-observer';
 
 type Dispatcher = Dispatch<SetStateAction<any>>;
 
@@ -53,7 +53,7 @@ export default function createStore<T extends ObjectLiteral>(initialState: T) {
       pathStr: getPath(change),
    }, null, 4);
 
-   state.observe(changes => {
+   state.observe((changes: Change[]) => {
       const affectedScopes: string[] = [];
       changes.forEach(change => {
          const { type, path, object, value, oldValue } = change;
@@ -77,6 +77,8 @@ export default function createStore<T extends ObjectLiteral>(initialState: T) {
      if (affectedScopes.length) {
       update(affectedScopes);
      }
+   }, {
+      enableGet: true,
    });
 
    const update = (affectedScopes: string[]) => {
@@ -118,6 +120,7 @@ export default function createStore<T extends ObjectLiteral>(initialState: T) {
    };
 
    const bypassObject = (object :any) => Object.defineProperty(object, '__bypass__', {
+      // TODO: replace with direct call
       value: true,
       configurable: true,
    });

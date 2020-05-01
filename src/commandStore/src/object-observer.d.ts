@@ -12,7 +12,7 @@ declare module 'object-observer' {
    export interface Options {
       path?: string;
       pathsOf?: string;
-      pathsFrom?: string'
+      pathsFrom?: string;
    }
 
    export class Observable {
