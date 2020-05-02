@@ -3,7 +3,7 @@ import { useStore } from './store';
 import { randomBorder } from './util';
 
 export default function Inspector() {
-   const { state, undoCount, redoCount } = useStore('*');
+   const { state, undoCount, redoCount } = useStore('Inspector');
 
    return (
       <section id="summary" style={randomBorder()}>

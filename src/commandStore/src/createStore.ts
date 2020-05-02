@@ -8,9 +8,11 @@ import {
 import { Observable } from './object-observer';
 import log from './log';
 
+type Path = Array<string | number | Symbol>;
+
 export interface Change {
    type: 'access' | 'insert' | 'update' | 'delete' | 'shuffle' | 'reverse';
-   path: Array<string | number>;
+   path: Path[];
    value: any;
    oldValue: any;
    object: any;
@@ -72,8 +74,10 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
 
    (window as any).state = state;
 
+   const filteredPath = (path: Path[]) => path.filter(item => typeof item !== 'symbol');
+
    const getPath = (change: Change): string =>
-      change.path.map(item => {
+      filteredPath(change.path).map(item => {
          if (typeof item === 'string') {
             return item;
          }
@@ -86,20 +90,23 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
    state.observe((changes: Change[]) => {
       const changedPaths: BitHash = {};
       changes.forEach(change => {
-         const { type, path, object, value, oldValue } = change;
-         const key = `${path[path.length - 1]}`;
-         if (type === 'delete' && key === '__bypass__') {
+         const { type, path: unfilteredPath, object, value, oldValue } = change;
+         const path = filteredPath(unfilteredPath);
+         const key = `${String(path[path.length - 1])}`;
+         if ((type === 'delete' || type === 'insert') && key === '__bypass__') {
             return;
          }
-         const pathStr = getPath(change);
+         let pathStr = getPath(change);
          if (type === 'access') {
-            log.write('get', pathStr, accessorIds);
+            // log.write('get', pathStr, accessorIds);
             const id = peekAccessor();
             if (id) {
                log.write('track', id, pathStr);
                dispatchers[id].scope[pathStr] = true;
             }
             return;
+         } else if (type === 'insert' || type === 'delete') {
+            pathStr = String(path[0]);
          }
          changedPaths[pathStr] = true;
          if ('__bypass__' in change.object) {
@@ -107,22 +114,32 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
             delete change.object['__bypass__'];
             return;
          }
-         log.write('observe!', change);
+         log.write('modification', change);
          undoStack.push(change);
          redoStack.length = 0;
-     });
-     update(changedPaths);
+      });
+      if (Object.keys(changedPaths).length) {
+         update(changedPaths);
+      }
    }, {
       enableGet: true
    });
 
    const update = (changedPaths: BitHash) => {
-      log.write('update', changedPaths);
+      const changedKeys = Object.keys(changedPaths);
+      log.write('update', changedKeys);
       Object.keys(dispatchers).forEach((id) => {
          const dispatcherWithScope = dispatchers[id];
-         Object.keys(changedPaths).forEach(changedPath => {
+         changedKeys.forEach(changedPath => {
             if (dispatcherWithScope.scope[changedPath]) {
                dispatcherWithScope.dispatcher(newId());
+            } else {
+               const dispatcherChangeKeys = Object.keys(dispatcherWithScope.scope);
+               dispatcherChangeKeys.find(dispatcherChangeKey => {
+                  if (dispatcherChangeKey.indexOf(changedPath) === 0) {
+                     dispatcherWithScope.dispatcher(newId());
+                  }
+               });
             }
          });
       });
@@ -131,7 +148,7 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
    const useStore = (name?: string): UseStoreReturnValue<T> => {
       const dispatcher: Dispatcher = useState()[1];
       const id = useRef(newId()).current;
-      log.write('useStore', id, JSON.stringify(name));
+      console.group(id, name);
 
       if (!dispatchers[id]) {
          const dispatcherWithScope: DispatcherWithScope = {
@@ -149,14 +166,15 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
       useEffect(() => {
          return () => {
             delete dispatchers[id];
-          };
+         };
       }, []);
 
       useEffect(() => {
          log.write('pop', id);
+         console.groupEnd();
          accessorIds.pop();
       });
-      
+
       return {
          id,
          state: state as unknown as T,
@@ -167,12 +185,6 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
       };
    };
 
-   const bypassObject = (object :any) => Object.defineProperty(object, '__bypass__', {
-      // TODO: replace with direct call
-      value: true,
-      configurable: true,
-   });
-
    const setValue = (path: (string | number)[], value: any) => {
       let ref = state as any;
       let key = path[0];
@@ -180,7 +192,7 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
          key = path[i];
          ref = ref[key];
       }
-      bypassObject(ref);
+      ref.__bypass__ = true;
       ref[path[path.length - 1]] = value;
    };
 
@@ -192,10 +204,9 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
          log.write('undo', change);
          const key = `${path[path.length - 1]}`;
          if (type === 'update') {
-            // object[key] = oldValue;
             setValue(path, oldValue);
          } else if (type === 'delete') {
-            bypassObject(object);
+            object.__bypass__ = true;
             if (Array.isArray(object)) {
                object.splice(parseInt(key), 0, oldValue);
             } // TODO: object and ?
@@ -215,7 +226,7 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
             setValue(path, value);
          } else if (type === 'insert' || type === 'delete') {
             if (Array.isArray(object)) {
-               bypassObject(object);
+               (object as any).__bypass__ = true;
                object.splice(parseInt(key), 1);
             } // TODO: object and ?
          }

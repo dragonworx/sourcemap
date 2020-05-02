@@ -5,12 +5,12 @@ import AddButton from './addButton';
 import { randomBorder } from './util';
 
 export default function Items() {
-   const { state } = useStore('items');
+   const { state: { items } } = useStore('Items');
 
    return (
       <div id="items" style={randomBorder()}>
-         <p>{state.items.length} Items: <AddButton /></p>
-         <ol>{state.items.map((item, i) => <Item key={i} item={item} />)}</ol>
+         <p>{items.length} Items: <AddButton /></p>
+         <ol>{items.map((item, i) => <Item key={i} item={item} />)}</ol>
       </div>
    );
 }
