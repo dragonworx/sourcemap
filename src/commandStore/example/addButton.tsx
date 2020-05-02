@@ -3,7 +3,7 @@ import { useStore } from './store';
 import { randomBorder } from './util';
 
 export default function AddButton() {
-   const { state: { items } } = useStore('AddButton');
+   const { store: { items } } = useStore('AddButton');
 
    const onAddClick = () => items.push({
       title: `New Item ${items.length + 1}`,

@@ -26,11 +26,12 @@ type Dispatcher = Dispatch<SetStateAction<any>>;
 
 interface UseStoreReturnValue<T> {
    id: string;
-   state: T;
+   store: T;
    undo: () => void;
    redo: () => void;
    undoCount: number;
    redoCount: number;
+   watch: (...scopes: string[]) => void;
 }
 
 interface HashMap<T> {
@@ -68,11 +69,11 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
       log.enabled = true;
    }
 
-   const state = Observable.from({
+   const store = Observable.from({
       ...initialState
    });
 
-   (window as any).state = state;
+   (window as any).store = store;
 
    const filteredPath = (path: Path[]) => path.filter(item => typeof item !== 'symbol');
 
@@ -87,7 +88,7 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
          .replace(/\.\[/g, '[')
          .replace(/\.\]/g, '[');
 
-   state.observe((changes: Change[]) => {
+   store.observe((changes: Change[]) => {
       const changedPaths: BitHash = {};
       changes.forEach(change => {
          const { type, path: unfilteredPath, object, value, oldValue } = change;
@@ -136,7 +137,7 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
             } else {
                const dispatcherChangeKeys = Object.keys(dispatcherWithScope.scope);
                dispatcherChangeKeys.find(dispatcherChangeKey => {
-                  if (dispatcherChangeKey.indexOf(changedPath) === 0) {
+                  if (dispatcherChangeKey === '*' || dispatcherChangeKey.indexOf(changedPath) === 0) {
                      dispatcherWithScope.dispatcher(newId());
                   }
                });
@@ -145,10 +146,20 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
       });
    };
 
+   const watch = (id: string) => (...scopes: string[]) => {
+      const dispatcherWithScope = dispatchers[id];
+      const hash: BitHash = {};
+      scopes.forEach(scope => hash[scope] = true);
+      log.write('watch', id, scopes);
+      dispatcherWithScope.scope = hash;
+   };
+
    const useStore = (name?: string): UseStoreReturnValue<T> => {
       const dispatcher: Dispatcher = useState()[1];
       const id = useRef(newId()).current;
-      console.group(id, name);
+      if (options.log === true) {
+         console.group(id, name);
+      }
 
       if (!dispatchers[id]) {
          const dispatcherWithScope: DispatcherWithScope = {
@@ -171,35 +182,39 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
 
       useEffect(() => {
          log.write('pop', id);
-         console.groupEnd();
+         if (options.log === true) {
+            console.groupEnd();
+         }
          accessorIds.pop();
       });
 
       return {
          id,
-         state: state as unknown as T,
+         store: store as unknown as T,
          undo,
          redo,
          undoCount: undoStack.length,
          redoCount: redoStack.length,
+         watch: watch(id),
       };
    };
 
-   const setValue = (path: (string | number)[], value: any) => {
-      let ref = state as any;
+   const setValue = (path: Path[], value: any) => {
+      let ref = store as any;
       let key = path[0];
       for (let i = 0; i < path.length - 1; i++) {
          key = path[i];
-         ref = ref[key];
+         ref = ref[String(key)];
       }
       ref.__bypass__ = true;
-      ref[path[path.length - 1]] = value;
+      ref[String(path[path.length - 1])] = value;
    };
 
    const undo = () => {
       const change = undoStack.pop();
       if (change) {
-         const { type, path, object, value, oldValue } = change;
+         const { type, path: unfilteredPath, object, value, oldValue } = change;
+         const path = filteredPath(unfilteredPath);
          redoStack.push(change);
          log.write('undo', change);
          const key = `${path[path.length - 1]}`;
@@ -217,7 +232,8 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
    const redo = () => {
       const change = redoStack.pop();
       if (change) {
-         const { type, path, object, value, oldValue } = change;
+         const { type, path: unfilteredPath, object, value, oldValue } = change;
+         const path = filteredPath(unfilteredPath);
          undoStack.push(change);
          log.write('redo', change);
          const key = `${path[path.length - 1]}`;

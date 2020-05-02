@@ -8,7 +8,7 @@ export interface Props {
 }
 
 export default function Item({ item }: Props) {
-   const { state: { items } } = useStore('Item');
+   const { store: { items } } = useStore('Item');
    const titleEl = useRef<HTMLInputElement>(null);
    const countEl = useRef<HTMLInputElement>(null);
 

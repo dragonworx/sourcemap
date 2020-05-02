@@ -5,7 +5,7 @@ import AddButton from './addButton';
 import { randomBorder } from './util';
 
 export default function Items() {
-   const { state: { items } } = useStore('Items');
+   const { store: { items } } = useStore('Items');
 
    return (
       <div id="items" style={randomBorder()}>
