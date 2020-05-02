@@ -1,0 +1,12 @@
+* [31mc884876[m -[33m (HEAD -> spike-new-store)[m fix bypass bug [32m(2 hours ago) [1;34m<Ali Chamas>[m
+* [31m05d60d4[m -[33m[m add access type to object-observe [32m(3 hours ago) [1;34m<Ali Chamas>[m
+* [31m93d4e91[m -[33m[m add object-observer src [32m(3 hours ago) [1;34m<Ali Chamas>[m
+* [31m1a5a101[m -[33m (origin/spike-new-store)[m replace commands with observer [32m(25 hours ago) [1;34m<Ali Chamas>[m
+* [31md275731[m -[33m[m simplify scope declarations [32m(27 hours ago) [1;34m<Ali Chamas>[m
+* [31m4d10f2c[m -[33m[m add object-observer [32m(2 days ago) [1;34m<Ali Chamas>[m
+* [31md003b96[m -[33m[m cleanup example [32m(3 days ago) [1;34m<Ali Chamas>[m
+* [31m9c63375[m -[33m[m optimise renders with scopes [32m(3 days ago) [1;34m<Ali Chamas>[m
+* [31m34d8705[m -[33m[m spike new store [32m(3 days ago) [1;34m<Ali Chamas>[m
+* [31m9b361a8[m -[33m (origin/master, master)[m refactor example [32m(3 days ago) [1;34m<Ali Chamas>[m
+* [31m5d251e9[m -[33m[m improved command store [32m(5 days ago) [1;34m<Ali Chamas>[m
+* [31m0922010[m -[33m[m initial commit [32m(6 days ago) [1;34m<Ali Chamas>[m

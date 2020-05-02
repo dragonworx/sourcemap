@@ -2,13 +2,27 @@ import {
    useState,
    useEffect,
    Dispatch,
-   SetStateAction
+   SetStateAction,
+   useRef,
 } from 'react';
-import { Observable, Change } from './object-observer';
+import { Observable } from './object-observer';
+
+export interface Change {
+   type: 'insert' | 'update' | 'delete' | 'shuffle' | 'reverse';
+   path: Array<string | number>;
+   value: any;
+   oldValue: any;
+   object: any;
+}
+
+export type ChangesHandler = (changes: Change[]) => void;
+
+const newId = () => `${Date.now()}${Math.random()}`.replace('.', '');
 
 type Dispatcher = Dispatch<SetStateAction<any>>;
 
 interface UseStoreReturnValue<T> {
+   id: string;
    state: T;
    undo: () => void;
    redo: () => void;
@@ -21,12 +35,17 @@ interface ObjectLiteral {
 }
 
 interface DispatcherWithScope {
+   id: string;
    dispatcher: Dispatcher;
    scope: string[];
 }
 
+interface DispatchersMap {
+   [id: string]: DispatcherWithScope;
+}
+
 export default function createStore<T extends ObjectLiteral>(initialState: T) {
-   const dispatchers = Array<DispatcherWithScope>();
+   const dispatchers: DispatchersMap = {};
    const undoStack: Change[] = [];
    const redoStack: Change[] = [];
 
@@ -77,18 +96,17 @@ export default function createStore<T extends ObjectLiteral>(initialState: T) {
      if (affectedScopes.length) {
       update(affectedScopes);
      }
-   }, {
-      enableGet: true,
    });
 
    const update = (affectedScopes: string[]) => {
       console.log('Update!', affectedScopes);
-      dispatchers.forEach((dispatcherWithScope) => {
+      Object.keys(dispatchers).forEach((id) => {
+         const dispatcherWithScope = dispatchers[id];
          affectedScopes.forEach(affectedScope => {
             if (dispatcherWithScope.scope.length === 0) return;
             dispatcherWithScope.scope.forEach(dispatcherScope => {
                if (dispatcherScope === '*' || affectedScope.indexOf(dispatcherScope) === 0) {
-                  dispatcherWithScope.dispatcher(Date.now());
+                  dispatcherWithScope.dispatcher(newId());
                }
             });
          })
@@ -97,20 +115,25 @@ export default function createStore<T extends ObjectLiteral>(initialState: T) {
 
    const useStore = (...scope: string[]): UseStoreReturnValue<T> => {
       const dispatcher: Dispatcher = useState()[1];
+      const id = useRef(newId()).current;
       const dispatcherWithScope: DispatcherWithScope = {
+         id,
          dispatcher,
          scope,
       };
 
+      if (!dispatchers[id]) {
+         dispatchers[id] = dispatcherWithScope;
+      }
+
       useEffect(() => {
-         dispatchers.push(dispatcherWithScope);
          return () => {
-            const index = dispatchers.findIndex(dispatcherWithScope => dispatcherWithScope.dispatcher === dispatcher);
-            dispatchers.splice(index, 1);
+            delete dispatchers[id];
           };
       }, []);
       
       return {
+         id,
          state: state as unknown as T,
          undo,
          redo,

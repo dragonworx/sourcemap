@@ -19,11 +19,4 @@ export const initialState = () => ({
 
 export type State = ReturnType<typeof initialState>;
 
-// const { Provider, useStore } = createCommandStore(initialState());
-
-// export {
-//    Provider as ExampleProvider,
-//    useStore,
-// }
-
 export const useStore = createStore(initialState());

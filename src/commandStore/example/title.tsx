@@ -16,10 +16,3 @@ export default function Title() {
       </div>
    );
 }
-
-
-/*
-   TODO: create <Store> component which takes a render function as a child.
-   Track scope access when function renders, wrap with useStore passing affectedScope.
-   Investigate object-observer adding get trap, convert to TS?
-*/
