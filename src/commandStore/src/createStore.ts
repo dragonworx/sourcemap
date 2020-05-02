@@ -6,9 +6,10 @@ import {
    useRef,
 } from 'react';
 import { Observable } from './object-observer';
+import log from './log';
 
 export interface Change {
-   type: 'insert' | 'update' | 'delete' | 'shuffle' | 'reverse';
+   type: 'access' | 'insert' | 'update' | 'delete' | 'shuffle' | 'reverse';
    path: Array<string | number>;
    value: any;
    oldValue: any;
@@ -17,7 +18,7 @@ export interface Change {
 
 export type ChangesHandler = (changes: Change[]) => void;
 
-const newId = () => `${Date.now()}${Math.random()}`.replace('.', '');
+const newId = () => `${Math.round(Math.random() * 100000)}`;
 
 type Dispatcher = Dispatch<SetStateAction<any>>;
 
@@ -30,24 +31,40 @@ interface UseStoreReturnValue<T> {
    redoCount: number;
 }
 
-interface ObjectLiteral {
-   [key: string]: any;
+interface HashMap<T> {
+   [key: string]: T;
 }
+
+type BitHash = HashMap<true>;
 
 interface DispatcherWithScope {
    id: string;
    dispatcher: Dispatcher;
-   scope: string[];
+   scope: BitHash;
+   name: string;
 }
 
-interface DispatchersMap {
-   [id: string]: DispatcherWithScope;
+interface Options {
+   log: boolean;
 }
 
-export default function createStore<T extends ObjectLiteral>(initialState: T) {
-   const dispatchers: DispatchersMap = {};
+const defaultOptions: Options = {
+   log: false,
+};
+
+export default function createStore<T extends HashMap<any>>(initialState: T, opts: Partial<Options> = {}) {
+   const options = {
+      ...defaultOptions,
+      ...opts,
+   };
+   const dispatchers: HashMap<DispatcherWithScope> = {};
    const undoStack: Change[] = [];
    const redoStack: Change[] = [];
+   const accessorIds: string[] = [];
+   const peekAccessor = () => accessorIds[accessorIds.length - 1];
+   if (options.log === true) {
+      log.enabled = true;
+   }
 
    const state = Observable.from({
       ...initialState
@@ -66,14 +83,8 @@ export default function createStore<T extends ObjectLiteral>(initialState: T) {
          .replace(/\.\[/g, '[')
          .replace(/\.\]/g, '[');
 
-   const debugChange = (change: Change) => JSON.stringify({
-      ...change,
-      object: undefined,
-      pathStr: getPath(change),
-   }, null, 4);
-
    state.observe((changes: Change[]) => {
-      const affectedScopes: string[] = [];
+      const changedPaths: BitHash = {};
       changes.forEach(change => {
          const { type, path, object, value, oldValue } = change;
          const key = `${path[path.length - 1]}`;
@@ -81,56 +92,70 @@ export default function createStore<T extends ObjectLiteral>(initialState: T) {
             return;
          }
          const pathStr = getPath(change);
-         if (affectedScopes.indexOf(pathStr) === -1) {
-            affectedScopes.push(pathStr);
+         if (type === 'access') {
+            log.write('get', pathStr, accessorIds);
+            const id = peekAccessor();
+            if (id) {
+               log.write('track', id, pathStr);
+               dispatchers[id].scope[pathStr] = true;
+            }
+            return;
          }
+         changedPaths[pathStr] = true;
          if ('__bypass__' in change.object) {
-            console.log('Detect Bypass!', debugChange(change));
+            log.write('detect bypass', change);
             delete change.object['__bypass__'];
             return;
          }
-         console.log('Observe!', debugChange(change));
+         log.write('observe!', change);
          undoStack.push(change);
          redoStack.length = 0;
      });
-     if (affectedScopes.length) {
-      update(affectedScopes);
-     }
+     update(changedPaths);
+   }, {
+      enableGet: true
    });
 
-   const update = (affectedScopes: string[]) => {
-      console.log('Update!', affectedScopes);
+   const update = (changedPaths: BitHash) => {
+      log.write('update', changedPaths);
       Object.keys(dispatchers).forEach((id) => {
          const dispatcherWithScope = dispatchers[id];
-         affectedScopes.forEach(affectedScope => {
-            if (dispatcherWithScope.scope.length === 0) return;
-            dispatcherWithScope.scope.forEach(dispatcherScope => {
-               if (dispatcherScope === '*' || affectedScope.indexOf(dispatcherScope) === 0) {
-                  dispatcherWithScope.dispatcher(newId());
-               }
-            });
-         })
+         Object.keys(changedPaths).forEach(changedPath => {
+            if (dispatcherWithScope.scope[changedPath]) {
+               dispatcherWithScope.dispatcher(newId());
+            }
+         });
       });
    };
 
-   const useStore = (...scope: string[]): UseStoreReturnValue<T> => {
+   const useStore = (name?: string): UseStoreReturnValue<T> => {
       const dispatcher: Dispatcher = useState()[1];
       const id = useRef(newId()).current;
-      const dispatcherWithScope: DispatcherWithScope = {
-         id,
-         dispatcher,
-         scope,
-      };
+      log.write('useStore', id, JSON.stringify(name));
 
       if (!dispatchers[id]) {
+         const dispatcherWithScope: DispatcherWithScope = {
+            id,
+            dispatcher,
+            scope: {},
+            name: name || id,
+         };
          dispatchers[id] = dispatcherWithScope;
       }
+
+      log.write('push', id);
+      accessorIds.push(id);
 
       useEffect(() => {
          return () => {
             delete dispatchers[id];
           };
       }, []);
+
+      useEffect(() => {
+         log.write('pop', id);
+         accessorIds.pop();
+      });
       
       return {
          id,
@@ -164,7 +189,7 @@ export default function createStore<T extends ObjectLiteral>(initialState: T) {
       if (change) {
          const { type, path, object, value, oldValue } = change;
          redoStack.push(change);
-         console.log('Undo!', debugChange(change));
+         log.write('undo', change);
          const key = `${path[path.length - 1]}`;
          if (type === 'update') {
             // object[key] = oldValue;
@@ -183,7 +208,7 @@ export default function createStore<T extends ObjectLiteral>(initialState: T) {
       if (change) {
          const { type, path, object, value, oldValue } = change;
          undoStack.push(change);
-         console.log('Redo!', debugChange(change));
+         log.write('redo', change);
          const key = `${path[path.length - 1]}`;
          if (type === 'update') {
             // object[key] = value;

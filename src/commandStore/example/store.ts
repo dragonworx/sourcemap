@@ -19,4 +19,6 @@ export const initialState = () => ({
 
 export type State = ReturnType<typeof initialState>;
 
-export const useStore = createStore(initialState());
+export const useStore = createStore(initialState(), {
+   log: true
+});

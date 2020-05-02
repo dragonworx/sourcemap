@@ -1,7 +1,7 @@
 import * as React from 'react';
 import Title from './title';
-import Items from './items';
-import Inspector from './inspector';
+// import Items from './items';
+// import Inspector from './inspector';
 import Undo from './undo';
 import Redo from './redo';
 import './example.less';
@@ -19,9 +19,9 @@ export default function Example() {;
                <section>
                   <Title />
                </section>
-               <Items />
+               {/* <Items /> */}
             </section>
-            <Inspector />
+            {/* <Inspector /> */}
          </div>
       </div>
    );
