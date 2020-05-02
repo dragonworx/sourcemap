@@ -11,7 +11,7 @@ export const initialState = () => ({
    user: {
       name: 'Bob',
    },
-   items: Array(1).fill(0).map((i, j) => ({
+   items: Array(3).fill(0).map((i, j) => ({
       title: `Item ${j}`,
       count: 0,
    })) as Item[],

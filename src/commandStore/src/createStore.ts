@@ -225,6 +225,11 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
             if (Array.isArray(object)) {
                object.splice(parseInt(key), 0, oldValue);
             } // TODO: object and ?
+         } else if (type === 'insert') {
+            object.__bypass__ = true;
+            if (Array.isArray(object)) {
+               object.splice(parseInt(key), 1);
+            } // TODO: object and ?
          }
       }
    };
@@ -240,10 +245,15 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
          if (type === 'update') {
             // object[key] = value;
             setValue(path, value);
-         } else if (type === 'insert' || type === 'delete') {
+         } else if (type === 'delete') {
             if (Array.isArray(object)) {
                (object as any).__bypass__ = true;
                object.splice(parseInt(key), 1);
+            } // TODO: object and ?
+         } else if (type === 'insert') {
+            if (Array.isArray(object)) {
+               (object as any).__bypass__ = true;
+               object.splice(parseInt(key), 0, value);
             } // TODO: object and ?
          }
       }
