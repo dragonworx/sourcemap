@@ -1,0 +1,1 @@
+* batches, apply to title example component, expose through useStore

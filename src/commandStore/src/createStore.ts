@@ -44,7 +44,7 @@ interface DispatcherWithScope {
    id: string;
    dispatcher: Dispatcher;
    scope: BitHash;
-   name: string;
+   name?: string;
 }
 
 interface Options {
@@ -73,7 +73,7 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
       ...initialState
    });
 
-   (window as any).store = store;
+   (window as any).example = store;
 
    const filteredPath = (path: Path[]) => path.filter(item => typeof item !== 'symbol');
 
@@ -102,7 +102,8 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
             // log.write('get', pathStr, accessorIds);
             const id = peekAccessor();
             if (id) {
-               log.write('track', id, pathStr);
+               const dispatcherWithScope = dispatchers[id];
+               log.write('bind', `[#${accessorIds.length}] ${id}`, dispatcherWithScope.name, pathStr);
                dispatchers[id].scope[pathStr] = true;
             }
             return;
@@ -117,7 +118,7 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
          }
          log.write('modification', change);
          undoStack.push(change);
-         redoStack.length = 0;
+         // redoStack.length = 0;
       });
       if (Object.keys(changedPaths).length) {
          update(changedPaths);
@@ -157,6 +158,8 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
    const useStore = (name?: string): UseStoreReturnValue<T> => {
       const dispatcher: Dispatcher = useState()[1];
       const id = useRef(newId()).current;
+      name = JSON.stringify(name);
+
       if (options.log === true) {
          console.group(id, name);
       }
@@ -166,12 +169,12 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
             id,
             dispatcher,
             scope: {},
-            name: name || id,
+            name,
          };
          dispatchers[id] = dispatcherWithScope;
       }
 
-      log.write('push', id);
+      log.write('push', id, name);
       accessorIds.push(id);
 
       useEffect(() => {
@@ -181,7 +184,7 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
       }, []);
 
       useEffect(() => {
-         log.write('pop', id);
+         log.write('pop', id, name);
          if (options.log === true) {
             console.groupEnd();
          }
