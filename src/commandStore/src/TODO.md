@@ -1,1 +1,1 @@
-* batches, apply to title example component, expose through useStore
+* batches/throttle, apply to title example component, expose through useStore

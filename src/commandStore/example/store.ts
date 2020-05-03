@@ -5,10 +5,11 @@ export interface Item {
    count: number;
 };
 
-const ITEM_COUNT = 1;
+const ITEM_COUNT = 3;
 
 export const initialState = () => ({
    title: 'My List',
+   test: [3,1,2],
    user: {
       name: 'Bob',
    },

@@ -8,23 +8,23 @@ import {
 import { Observable } from './object-observer';
 import log from './log';
 
-type Path = Array<string | number | Symbol>;
+type ObjectDeepPath = Array<string | number | Symbol>;
 
-export interface Change {
+export interface ObserverChange {
    type: 'access' | 'insert' | 'update' | 'delete' | 'shuffle' | 'reverse';
-   path: Path[];
+   path: ObjectDeepPath[];
    value: any;
    oldValue: any;
    object: any;
 }
 
-export type ChangesHandler = (changes: Change[]) => void;
+export type ChangesHandler = (changes: ObserverChange[]) => void;
 
 const newId = () => `${Math.round(Math.random() * 100000)}`;
 
 type Dispatcher = Dispatch<SetStateAction<any>>;
 
-interface UseStoreReturnValue<T> {
+interface StoreAPI<T> {
    id: string;
    store: T;
    undo: () => void;
@@ -55,14 +55,16 @@ const defaultOptions: Options = {
    log: false,
 };
 
+const BYPASS_KEY = '__bypass_next_change__';
+
 export default function createStore<T extends HashMap<any>>(initialState: T, opts: Partial<Options> = {}) {
    const options = {
       ...defaultOptions,
       ...opts,
    };
    const dispatchers: HashMap<DispatcherWithScope> = {};
-   const undoStack: Change[] = [];
-   const redoStack: Change[] = [];
+   const undoStack: ObserverChange[] = [];
+   const redoStack: ObserverChange[] = [];
    const accessorIds: string[] = [];
    const peekAccessor = () => accessorIds[accessorIds.length - 1];
    if (options.log === true) {
@@ -73,11 +75,11 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
       ...initialState
    });
 
-   (window as any).example = store;
+   (window as any).store = store;
 
-   const filteredPath = (path: Path[]) => path.filter(item => typeof item !== 'symbol');
+   const filteredPath = (path: ObjectDeepPath[]) => path.filter(item => typeof item !== 'symbol');
 
-   const getPath = (change: Change): string =>
+   const getPath = (change: ObserverChange): string =>
       filteredPath(change.path).map(item => {
          if (typeof item === 'string') {
             return item;
@@ -88,18 +90,19 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
          .replace(/\.\[/g, '[')
          .replace(/\.\]/g, '[');
 
-   store.observe((changes: Change[]) => {
+   store.observe((changes: ObserverChange[]) => {
       const changedPaths: BitHash = {};
       changes.forEach(change => {
          const { type, path: unfilteredPath, object, value, oldValue } = change;
          const path = filteredPath(unfilteredPath);
          const key = `${String(path[path.length - 1])}`;
-         if ((type === 'delete' || type === 'insert') && key === '__bypass__') {
+         const isBypassChange = (type === 'delete' || type === 'insert') && key === BYPASS_KEY;
+         const isUndoableChange = type === 'update' || type === 'insert' || type === 'delete';
+         if (isBypassChange) {
             return;
          }
          let pathStr = getPath(change);
          if (type === 'access') {
-            // log.write('get', pathStr, accessorIds);
             const id = peekAccessor();
             if (id) {
                const dispatcherWithScope = dispatchers[id];
@@ -111,14 +114,15 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
             pathStr = String(path[0]);
          }
          changedPaths[pathStr] = true;
-         if ('__bypass__' in change.object) {
+         if (BYPASS_KEY in change.object) {
             log.write('detect bypass', change);
-            delete change.object['__bypass__'];
+            delete change.object[BYPASS_KEY];
             return;
          }
-         log.write('modification', change);
-         undoStack.push(change);
-         // redoStack.length = 0;
+         if (isUndoableChange) {
+            log.write('modification', change);
+            undoStack.push(change);
+         }
       });
       if (Object.keys(changedPaths).length) {
          update(changedPaths);
@@ -155,7 +159,7 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
       dispatcherWithScope.scope = hash;
    };
 
-   const useStore = (name?: string): UseStoreReturnValue<T> => {
+   const useStore = (name?: string): StoreAPI<T> => {
       const dispatcher: Dispatcher = useState()[1];
       const id = useRef(newId()).current;
       name = JSON.stringify(name);
@@ -202,14 +206,14 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
       };
    };
 
-   const setValue = (path: Path[], value: any) => {
+   const setValue = (path: ObjectDeepPath[], value: any) => {
       let ref = store as any;
       let key = path[0];
       for (let i = 0; i < path.length - 1; i++) {
          key = path[i];
          ref = ref[String(key)];
       }
-      ref.__bypass__ = true;
+      ref[BYPASS_KEY] = true;
       ref[String(path[path.length - 1])] = value;
    };
 
@@ -224,15 +228,19 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
          if (type === 'update') {
             setValue(path, oldValue);
          } else if (type === 'delete') {
-            object.__bypass__ = true;
+            object[BYPASS_KEY] = true;
             if (Array.isArray(object)) {
                object.splice(parseInt(key), 0, oldValue);
-            } // TODO: object and ?
+            } else {
+               object[key] = oldValue;
+            }
          } else if (type === 'insert') {
-            object.__bypass__ = true;
+            object[BYPASS_KEY] = true;
             if (Array.isArray(object)) {
                object.splice(parseInt(key), 1);
-            } // TODO: object and ?
+            } else {
+               delete object[key];
+            }
          }
       }
    };
@@ -250,14 +258,18 @@ export default function createStore<T extends HashMap<any>>(initialState: T, opt
             setValue(path, value);
          } else if (type === 'delete') {
             if (Array.isArray(object)) {
-               (object as any).__bypass__ = true;
+               (object as any)[BYPASS_KEY] = true;
                object.splice(parseInt(key), 1);
-            } // TODO: object and ?
+            } else {
+               delete object[key];
+            }
          } else if (type === 'insert') {
             if (Array.isArray(object)) {
-               (object as any).__bypass__ = true;
+               (object as any)[BYPASS_KEY] = true;
                object.splice(parseInt(key), 0, value);
-            } // TODO: object and ?
+            } else {
+               object[key] = value;
+            }
          }
       }
    };
