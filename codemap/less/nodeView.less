@@ -1,0 +1,26 @@
+.node {
+   border-width: 1px;
+   border-style: solid;
+   border-color: transparent;
+   position: absolute;
+   user-select: none;
+   box-sizing: content-box;
+
+   .preview, .line-over {
+      width: 100%;
+      user-select: none;
+      pointer-events: none;
+   }
+
+   .line-over {
+      position: absolute;
+      left: 0;
+      background: rgba(0,0,0,0.2);
+      -webkit-filter:invert(100%);
+      filter:invert(100%);
+   }
+}
+
+.node.drag {
+   box-shadow: 7px 8px 7px 0px rgba(0, 0, 0, 0.3);
+}
